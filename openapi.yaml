@@ -1,0 +1,79 @@
+openapi: 3.0.3
+info:
+  title: DEA Lookup.com State License API
+  version: "1.0"
+  description: >
+    Real-time primary source verification of state professional licenses in all 50 states and
+    Washington, DC. Each request is retrieved live from the issuing state licensing board.
+    The endpoint address and credentials are provided with a DEA Lookup.com subscription.
+  contact:
+    name: DEA Lookup.com, Inc.
+    email: sales@dealookup.com
+    url: https://www.dealookup.com/LicenseLookup/State_License_API_Documentation.asp
+servers:
+  - url: "{endpoint}"
+    description: Endpoint provided with your subscription
+    variables:
+      endpoint:
+        default: https://your-endpoint-from-dealookup
+paths:
+  /:
+    post:
+      summary: Verify a state license
+      description: >
+        Verifies one license live against the state board. Set your client timeout to 200 seconds;
+        most states respond within a few seconds, a few can take 30 seconds or more.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [username, password, SL_n, SL_s, SL_pd]
+              properties:
+                username: {type: string, description: Your API username.}
+                password: {type: string, description: Your API password.}
+                SL_n: {type: string, description: State license number., example: A123456}
+                SL_s: {type: string, description: Two-letter state code (or DC)., example: CA}
+                SL_pd:
+                  type: string
+                  description: Professional designation.
+                  enum: [MD, DO, PA, NP, DDS, RPH, RX, NHA]
+                SL_pd_nursing:
+                  type: string
+                  description: Nursing license type, used with SL_pd=NP.
+                  enum: [ACNA, CNA, LPN, LM, RN, APRN_NP, APRN_CNS, APRN_CRNA, APRN_CNM]
+                SL_ln: {type: string, description: Last name in uppercase. Recommended., example: DOE}
+                SL_psView: {type: string, description: Set to "on" to return the state board's own result page., enum: ["on"]}
+                OutputFormat: {type: string, description: Output format., enum: [JSON, HTMLdisplay], default: HTMLdisplay}
+      responses:
+        "200":
+          description: >
+            Verification result. Result codes - 1 validated, 2 not found, 3 name mismatch, 4 error.
+            Text responses begin with the result code followed by "|".
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Result: {type: integer, enum: [1, 2, 3, 4]}
+                  ResultLabel: {type: string, example: LicenseValidated}
+                  ResultDetail: {type: string}
+                  State License: {type: string}
+                  State: {type: string}
+                  Status: {type: string, description: Status as worded by the state board.}
+                  Expires: {type: string, description: Expiration date as formatted by the state board.}
+                  Name: {type: string}
+                  PD: {type: string}
+              example:
+                Result: 1
+                ResultLabel: LicenseValidated
+                ResultDetail: State license board website data found.
+                State License: A123456
+                State: CA
+                Status: LICENSE RENEWED & CURRENT
+                Expires: MARCH 31, 2028
+                Name: DOE, JANE A
+                PD: MD
+            text/plain:
+              example: "2|License not found."
