@@ -43,14 +43,16 @@ paths:
                   type: string
                   description: Nursing license type, used with SL_pd=NP.
                   enum: [ACNA, CNA, LPN, LM, RN, APRN_NP, APRN_CNS, APRN_CRNA, APRN_CNM]
-                SL_ln: {type: string, description: Last name in uppercase. Recommended., example: DOE}
-                SL_psView: {type: string, description: Set to "on" to return the state board's own result page., enum: ["on"]}
+                SL_ln: {type: string, description: Last name in uppercase. Optional and usually not needed. Adds a name check., example: DOE}
+                SL_psView: {type: string, description: Set to "on" to return the state board's own result page as HTML (primary source view)., enum: ["on"]}
                 OutputFormat: {type: string, description: Output format., enum: [JSON, HTMLdisplay], default: HTMLdisplay}
       responses:
         "200":
           description: >
             Verification result. Result codes - 1 validated, 2 not found, 3 name mismatch, 4 error.
-            Text responses begin with the result code followed by "|".
+            Text responses begin with the result code followed by "|". Errors, including invalid and
+            expired logins, return code 4 with the message in ErrorDetail. When SL_psView is "on", the
+            response is the state board's own result page as HTML, with no result code.
           content:
             application/json:
               schema:
@@ -59,6 +61,7 @@ paths:
                   Result: {type: integer, enum: [1, 2, 3, 4]}
                   ResultLabel: {type: string, example: LicenseValidated}
                   ResultDetail: {type: string}
+                  ErrorDetail: {type: string, description: Error message. Returned when Result is 4.}
                   State License: {type: string}
                   State: {type: string}
                   Status: {type: string, description: Status as worded by the state board.}
@@ -77,3 +80,5 @@ paths:
                 PD: MD
             text/plain:
               example: "2|License not found."
+            text/html:
+              schema: {type: string, description: The state board's own result page. Returned when SL_psView is "on".}

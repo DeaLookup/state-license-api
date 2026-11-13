@@ -8,7 +8,7 @@ A unified REST API for **real-time primary source verification of state professi
 - **Audit-ready evidence:** an optional primary source view returns the state board's own result page, so you can keep time-stamped proof of each verification for NCQA, URAC, and Joint Commission audits.
 - **Pay per lookup:** metered pricing, billed monthly. Run checks whenever you need them.
 
-Website: [dealookup.com](https://www.dealookup.com/) · Product page: [State Medical License API](https://www.dealookup.com/LicenseLookup/State_License_API.asp) · Full documentation: [State License API Documentation](https://www.dealookup.com/LicenseLookup/State_License_API_Documentation.asp)
+Website: [dealookup.com](https://www.dealookup.com/) · Product page: [State Medical License API](https://www.dealookup.com/LicenseLookup/State_License_API.asp) · Full documentation: [State License API Documentation](https://www.dealookup.com/LicenseLookup/State_License_API_Documentation.asp) · AI assistants: [State License MCP Usage Guide](https://www.dealookup.com/LicenseLookup/State_License_MCP_Usage_Guide.asp)
 
 ---
 
@@ -24,6 +24,7 @@ Website: [dealookup.com](https://www.dealookup.com/) · Product page: [State Med
 - [Monitoring licenses on your own schedule](#monitoring-licenses-on-your-own-schedule)
 - [Integration tips](#integration-tips)
 - [Examples](#examples)
+- [Using the API from an AI assistant](#using-the-api-from-an-ai-assistant)
 - [Support](#support)
 
 ## Getting access
@@ -48,7 +49,7 @@ Send an HTTPS `POST` request with form-encoded parameters (`application/x-www-fo
 | 4 | `SL_s` | Yes | Two-letter state code, for example `CA`, or `DC` for Washington, DC. |
 | 5 | `SL_pd` | Yes | Professional designation. See [professional designations](#professional-designations). |
 | 6 | `SL_pd_nursing` | No | Nursing license type, used with `SL_pd=NP`. See [nursing license types](#nursing-license-types). |
-| 7 | `SL_ln` | No | Last name, in uppercase. Confirms the license belongs to this person. Recommended, because some states return more than one result for a license number. |
+| 7 | `SL_ln` | No | Last name, in uppercase. Optional and usually not needed. Adds a check that the license belongs to this person, which helps in the few states that return more than one result for a license number. |
 | 8 | `SL_psView` | No | Set to `on` to return the state board's own result page (primary source view). Default is off. |
 | 9 | `OutputFormat` | No | `JSON` for JSON output, or `HTMLdisplay` for text output suited to testing. Default is `HTMLdisplay`. |
 
@@ -99,7 +100,7 @@ Availability of each license type varies by state.
 
 ## Responses and result codes
 
-Every response includes a result code, so your system can route the result without parsing the rest of the response.
+Every response includes a result code, so your system can route the result without parsing the rest of the response. The one exception is the primary source view: when `SL_psView=on`, the response is the state board's own result page as HTML, with no result code.
 
 | Code | Meaning | Text response |
 |---|---|---|
@@ -124,6 +125,26 @@ JSON response, license found ([samples/validated.json](samples/validated.json)):
 }
 ```
 
+JSON response, license not found ([samples/not-found.json](samples/not-found.json)):
+
+```json
+{
+  "Result": 2,
+  "ResultLabel": "License not found.",
+  "ResultDetail": "License number invalid or no longer reported on state board site."
+}
+```
+
+JSON response, name mismatch ([samples/name-mismatch.json](samples/name-mismatch.json)):
+
+```json
+{
+  "Result": 3,
+  "ResultLabel": "License invalid: Name mismatch.",
+  "ResultDetail": "The last name submitted does not match to this license."
+}
+```
+
 Text response, license found ([samples/validated.txt](samples/validated.txt)):
 
 ```text
@@ -138,13 +159,26 @@ PD: MD
 
 `Status` and `Expires` are reported as each state board words them, so the same status or date can be formatted differently from state to state. Route on the result code, not the status text. Example data is fictional.
 
+### Disciplinary information
+
+The result reports license status and expiration. Disciplinary information, where a state publishes it, is found in the primary source page (`SL_psView=on`). Every state reports disciplinary data differently, and some report little or none.
+
 ## Errors
 
-Errors return result code `4` with a message.
+Errors return result code `4` with a message. In JSON output the message is in `ErrorDetail` ([samples/error.json](samples/error.json)):
+
+```json
+{
+  "Result": 4,
+  "ResultLabel": "Error",
+  "ErrorDetail": "Invalid login."
+}
+```
 
 | Message | What to do |
 |---|---|
 | `Invalid login` | Check your API username and password. |
+| `Expired login` | Your API account has expired. Contact [customerservice@dealookup.com](mailto:customerservice@dealookup.com). |
 | `No state license number entered.` | Include `SL_n`. |
 | `No state entered.` | Include `SL_s`. |
 | `No professional designation entered.` | Include `SL_pd`. |
@@ -168,9 +202,9 @@ Because every request is a live primary source check, you monitor licenses by ru
 
 ## Integration tips
 
-- **Always send a last name** in `SL_ln`. It protects against matching the wrong person's license in states that return multiple results.
+- **Send a last name when you want a name check.** `SL_ln` is optional and usually not needed. It helps in the few states that return more than one result for a license number.
 - **Route on the result code**, not the status text. Status wording varies by state.
-- **Retry state website errors** after a short delay before treating a license as unverified.
+- **Retry state website errors** after a short delay before treating a license as unverified. Don't retry login errors or missing-parameter errors.
 - **Store each result with the date and time of the check** for your audit trail. Use `SL_psView=on` when you need a copy of the state board's own result page.
 - **Keep credentials on your server.** Don't place API credentials in browser code or mobile apps.
 
@@ -192,6 +226,12 @@ export SL_API_PASSWORD="your-password"
 | C# (.NET 6+) | [examples/VerifyLicense.cs](examples/VerifyLicense.cs) |
 
 An OpenAPI 3.0 description of the request is in [openapi.yaml](openapi.yaml).
+
+## Using the API from an AI assistant
+
+The State License API is also available to AI assistants through the State License MCP server. You add the server to your assistant's connector settings with your API credentials, then ask in plain language to verify a license. The assistant runs the same live primary source lookup and can save the state board's primary source page as proof of licensure.
+
+See the [State License MCP Usage Guide](https://www.dealookup.com/LicenseLookup/State_License_MCP_Usage_Guide.asp) for connection settings, what to provide for a lookup, and troubleshooting.
 
 ## Related reading
 

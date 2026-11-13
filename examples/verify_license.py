@@ -12,6 +12,8 @@ import time
 import requests
 
 RESULT_LABELS = {1: "validated", 2: "not found", 3: "name mismatch", 4: "error"}
+# Errors that will not clear on their own, so they are not retried.
+NO_RETRY = ("login", "entered", "cannot be a number", "not available")
 
 
 def verify_license(license_number, state, designation, last_name="", nursing_type="", retries=2):
@@ -33,11 +35,14 @@ def verify_license(license_number, state, designation, last_name="", nursing_typ
         try:
             result = resp.json()
             code = int(result.get("Result", 4))
+            message = result.get("ErrorDetail", "")
         except ValueError:
             # Non-JSON responses use the text format: "<code>|..."
             result = {"raw": resp.text}
             code = int(resp.text.split("|", 1)[0])
-        if code != 4 or attempt == retries:
+            message = resp.text.rsplit("|", 1)[-1]
+        permanent = any(text in message for text in NO_RETRY)
+        if code != 4 or permanent or attempt == retries:
             return code, result
         time.sleep(10)  # temporary state website problems usually clear on retry
 
